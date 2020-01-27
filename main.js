@@ -1,88 +1,59 @@
 const SHA256 = require('crypto-js/sha256');
 
-class Transaction{
-    constructor(fromAddress, toAddress, amount){
-        this.fromAddress = fromAddress;
-        this.toAddress = toAddress;
-        this.amount = amount;
-    }
-}
-
 class Block{
-    constructor(timestamp, transactions, previousHash){
+    constructor(index, timestamp, data, previousHash=''){
+        this.index = index;
         this.timestamp = timestamp;
-        this.transactions = transactions;
+        this.data = data;
         this.previousHash = previousHash;
-        this.hash = this.CalculateHash();
-        this.nonce = 0
+        this.hash = this.calculateHash();
+        this.nonce = 0;
     }
 
-    CalculateHash(){
-        return SHA256(this.timestamp + JSON.stringify(this.transactions) + this.previousHash + this.nonce).toString();
+    calculateHash(){
+        return SHA256(this.index + this.previousHash + this.timestamp + JSON.stringify(this.data) + this.nonce).toString();
     }
 
-    MineBlock(difficulty){
+    mineBlock(difficulty){
         while(this.hash.substring(0,difficulty) !== Array(difficulty + 1).join("0")){
             this.nonce++;
-            this.hash = this.CalculateHash();
+            this.hash = this.calculateHash();
         }
         console.log('Block mined: ' + this.hash);
     }
 }
 
-class Blockchain{
+class BlockChain{
     constructor(){
-        this.chain = [this.CreateGenesisBlock()];
-        this.pendingTransactions = [];
+        this.chain = [this.createGenesisBlock()];
         this.difficulty = 2;
-        this.minerReward = 100;
     }
 
-    CreateGenesisBlock(){
-        return new Block(Date.now(), 'Genesis Block', '0');
+    createGenesisBlock(){
+        return new Block(0, '01/01/2020', 'Genesis Block', '0');
     }
 
-    GetLatestBlock(){
+    getLatestBlock(){
         return this.chain[this.chain.length - 1];
     }
 
-    CreateTransaction(transaction){
-            this.pendingTransactions.push(transaction);
+    addBlock(newBlock){
+        newBlock.previousHash = this.getLatestBlock().hash;
+        newBlock.mineBlock(this.difficulty);
+        //newBlock.hash = newBlock.calculateHash();
+        this.chain.push(newBlock);
     }
-
-    MinePendingTransaction(minerAddress){
-       let newBlock = new Block(Date.now(), this.pendingTransactions, this.GetLatestBlock().hash); 
-       newBlock.MineBlock(this.difficulty);
-       this.chain.push(newBlock);
-
-       this.pendingTransactions = [new Transaction(null, minerAddress, this.minerReward)];
-    }
-
-    GetBalanceofAddress(address){
-        let balance = 0;
-
-        for(const block of this.chain){
-            for(const trans of block.transactions)
-            {
-                if(trans.fromAddress == address)
-                {
-                    balance =- trans.amount;
-                }
-                if(trans.toAddress == address)
-                {
-                    balance =+ trans.amount;
-                }
-            }
-        }
-        return balance;
-    }
-
-    IsChainValid(){
+    
+    isChainValid(){
         for(let i = 1; i < this.chain.length; i++){
             const currentBlock = this.chain[i];
             const previousBlock = this.chain[i-1];
 
-            if((currentBlock.hash !== currentBlock.CalculateHash()) || (previousBlock.hash !== currentBlock.previousHash)){
+            if(currentBlock.hash != currentBlock.calculateHash()){
+                return false;
+            }
+
+            if(currentBlock.previousHash != previousBlock.hash){
                 return false;
             }
         }
@@ -90,13 +61,18 @@ class Blockchain{
     }
 }
 
+let hanishCoin = new BlockChain();
 
-let HanishNewCoin = new Blockchain();
+console.log('mining block 1');
+hanishCoin.addBlock(new Block(1, 20/01/2020,{amount : 4}));
 
-HanishNewCoin.CreateTransaction(new Transaction('Hanish1', 'Hanish2', '50'));
-HanishNewCoin.MinePendingTransaction('Jadmeet');
-HanishNewCoin.GetBalanceofAddress('Hanish2');
-console.log("Balance is " + HanishNewCoin.GetBalanceofAddress('Hanish2'));
+console.log('mining block 2');
+hanishCoin.addBlock(new Block(2, 21/1/2020, {amount: 5}));
 
-//HanishNewCoin.AddBlock(new Block(Date.now(), 'abc'));
-//console.log(HanishNewCoin, 4, null);
+
+//trying to change data in blockchain to test "isChainVlalid" function
+//hanishCoin.chain[1].data = 'amount : 8';
+//console.log('Is chain valid ' + hanishCoin.isChainValid());
+
+//printing blockchain
+console.log(JSON.stringify(hanishCoin, null, 4));
